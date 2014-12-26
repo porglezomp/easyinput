@@ -4,9 +4,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <linux/input.h>
-#include <string.h>
+#include <fcntl.h>
 #include <stdio.h>
-#include <math.h>
 
 static const char *dev = "/dev/input/event1";
 static ssize_t n;
