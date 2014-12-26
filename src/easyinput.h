@@ -13,6 +13,11 @@ struct input_event;
  */
 int ei_setup(const char* device_name);
 
+/* Will poll all available characters from the input
+ * Use this if you only care about what keys are currently pressed
+ */
+void ei_poll_all();
+
 /* Pass in a pointer to a `struct input_event`. If an
  * event is found, the input_event will be filled with the
  * located event.
@@ -26,6 +31,23 @@ int ei_setup(const char* device_name);
  * }
  */
 int ei_get_key_event(struct input_event *ev);
+
+/* Pass in a keycode from <linux/input.h> and return whether
+ * or not it is currently pressed.
+ *
+ * It will return 1 if the key is pressed, and 0 if it's not
+ */
+int ei_key_down(int key);
+
+/* Will reset the state of all the keys to not pressed.
+ * Useful for when you lose focus and are worries you missed the
+ * key release event.
+ */
+void ei_reset_keys();
+
+/* Will reset a single key to a not pressed state
+ */
+void ei_reset_key(int key);
 
 #ifdef __cplusplus
 }

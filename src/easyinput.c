@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <linux/input.h>
 #include <fcntl.h>
+#include <string.h>
 #include <stdio.h>
 
 static const char *dev = "/dev/input/event1";
@@ -12,6 +13,9 @@ static ssize_t n;
 static int fd;
 static fd_set writefds;
 static struct timeval timeout;
+
+#define NUM_KEYS 256
+static int pressed_keys[NUM_KEYS];
 
 int ei_setup(const char* device_name) {
     // Use the default name
@@ -41,7 +45,11 @@ int ei_get_key_event(struct input_event *ev) {
         if (n == (ssize_t)-1) return 0;
         // If the event struct is the wrong size, give up
         if (n != sizeof *ev) return 0;
-
+        // Set the key as pressed or unpressed
+        if (ev->type == EV_KEY && ev->value == 0 || ev->value == 1) {
+            int key = ev->code;
+            if (key >= 0 && key < NUM_KEYS) pressed_keys[key] = ev->value;
+        }
         // We found a keypress!
         return 1;
     }
@@ -49,3 +57,22 @@ int ei_get_key_event(struct input_event *ev) {
     return 0;
 }
 
+void ei_poll_all() {
+    struct input_event ev;
+    // ei_get_key_event() will update the key pressed status,
+    // so we run it until there are no events to get keypress state
+    while (ei_get_key_event(&ev)) { }
+}
+
+int ei_key_down(int key) {
+    if (key < 0 || key >= NUM_KEYS) return 0;
+    return pressed_keys[key];
+}
+
+void ei_reset_keys() {
+    memset(pressed_keys, 0, NUM_KEYS * sizeof(int));
+}
+
+void ei_reset_key(int key) {
+    if (key >= 0 && key < NUM_KEYS) pressed_keys[key] = 0;
+}
