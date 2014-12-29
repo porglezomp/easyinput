@@ -16,6 +16,7 @@ static struct timeval timeout;
 
 #define NUM_KEYS 256
 static int pressed_keys[NUM_KEYS];
+static int keydown_keys[NUM_KEYS];
 
 int ei_setup(const char* device_name) {
     // Use the default name
@@ -48,7 +49,11 @@ int ei_get_key_event(struct input_event *ev) {
         // Set the key as pressed or unpressed
         if (ev->type == EV_KEY && ev->value == 0 || ev->value == 1) {
             int key = ev->code;
-            if (key >= 0 && key < NUM_KEYS) pressed_keys[key] = ev->value;
+            if (key >= 0 && key < NUM_KEYS) {
+                pressed_keys[key] = ev->value;
+                // Only ever promote from 0 to 1, never demote
+                keydown_keys[key] |= ev->value;
+            }
         }
         // We found a keypress!
         return 1;
@@ -69,6 +74,11 @@ int ei_key_down(int key) {
     return pressed_keys[key];
 }
 
+int ei_frame_keypress(int key) {
+    if (key < 0 || key >= NUM_KEYS) return 0;
+    return keydown_keys[key];
+}
+
 void ei_reset_keys() {
     memset(pressed_keys, 0, NUM_KEYS * sizeof(int));
 }
@@ -76,3 +86,8 @@ void ei_reset_keys() {
 void ei_reset_key(int key) {
     if (key >= 0 && key < NUM_KEYS) pressed_keys[key] = 0;
 }
+
+void ei_frame_start() {
+    memset(keydown_keys, 0, NUM_KEYS * sizeof(int));
+}
+
