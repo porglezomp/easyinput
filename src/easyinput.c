@@ -18,12 +18,20 @@ static struct timeval timeout;
 static int pressed_keys[NUM_KEYS];
 static int keydown_keys[NUM_KEYS];
 
+int find_device();
+
 int ei_setup(const char* device_name) {
-    // Use the default name
-    if (device_name == NULL) device_name = dev;
+  // Try to figure out the name if we recieved NULL
+  if (device_name == NULL) {
+    fd = find_device();
+  } else {
     fd = open(device_name, O_RDONLY);
-    if (fd == -1) return 1;
-    return 0;
+  }
+  return (fd == -1);
+}
+
+int ei_teardown() {
+  close(fd);
 }
 
 int ei_get_key_event(struct input_event *ev) {
@@ -89,5 +97,102 @@ void ei_reset_key(int key) {
 
 void ei_frame_start() {
     memset(keydown_keys, 0, NUM_KEYS * sizeof(int));
+}
+
+int find_device() {
+  // We must examine the input devices
+  int fd = open("/proc/bus/input/devices", O_RDONLY);
+  int event_no = -1;
+
+  enum {
+    DEAD_LINE,
+    READ_LINE,
+    BEGIN_LINE
+  };
+
+  int i, count = 0, line_state = BEGIN_LINE;
+  char fbuffer[100];
+  char last_char = '0';
+  // Process the file in chunks of 100 characters at a time
+  while ((count = read(fd, fbuffer, 100)) > 0) {
+    for (i = 0; i < count; i++) {
+      char letter = fbuffer[i];
+      // If we reach a newline, start processing the new line
+      if (letter == '\n') {
+	line_state = BEGIN_LINE;
+	continue;
+      } else if (line_state == DEAD_LINE) {
+	// If the line has already been disqualified, skip characters
+	continue;
+      }
+
+      // If we're just beginning a line
+      if (line_state == BEGIN_LINE) {
+	// Keep reading the line if the first character is 'N', otherwise skip
+	if (letter == 'N') {
+	  line_state = READ_LINE;
+	  // We're searching in this line, if it matches event_no will produce
+	  // the device name: event0, event1, etc.
+	  event_no += 1;
+	} else {
+	  line_state = DEAD_LINE;
+	}
+	continue;
+      }
+
+      // If we've made it to here, we're processing a line
+      // What follows is an ad-hoc state machine to match [Kk](eyboard|db)
+      switch (last_char) {
+      case '0':
+	if (letter == 'k' || letter == 'K') last_char = 'k';
+	else last_char = '0';
+	break;
+      case 'k':
+	if (letter == 'e' || letter == 'd') last_char = letter;
+	else last_char = '0';
+	break;
+      case 'd':
+	// 1 signals that a match has been found (matches [Kk]db)
+	if (letter == 'b') last_char = '1';
+	else last_char = '0';
+	break;
+	// This macro handles checking for a transition from f -> t
+#define STATE_FROM_TO(f, t) case f:\
+	if (letter == t) last_char = t;\
+	else last_char = '0';\
+	break;
+	
+	STATE_FROM_TO('e', 'y');
+	STATE_FROM_TO('y', 'b');
+	STATE_FROM_TO('b', 'o');
+	STATE_FROM_TO('o', 'a');
+	STATE_FROM_TO('a', 'r');
+	
+      case 'r':
+	// 1 signals that a match has been found (matches [Kk]eyboard)
+	if (letter == 'd') last_char = '1';
+	else last_char = '0';
+	break;
+      }
+
+      // A match was found on this line, break and use event_no
+      // to open the device file
+      if (last_char == '1') {
+	break;
+      }
+    }
+  }
+
+  close(fd);
+  // If we found an input device that looks like a keyboard
+  if (event_no != -1) {
+    // Construct the name of the device...
+    char fname[20];
+    snprintf(fname, 20, "/dev/input/event%i", event_no);
+    // ...and then return a file handle pointing to it
+    return open(fname, O_RDONLY);
+  }
+  
+  return -1;
 }
 
