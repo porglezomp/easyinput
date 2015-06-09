@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([easyinput], [0.2], [bugs.adventurous@gmail.com])
+AC_INIT([easyinput], [0.3], [bugs.adventurous@gmail.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_SRCDIR([src/])

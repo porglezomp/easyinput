@@ -1,4 +1,5 @@
 #include "easyinput.h"
+
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -10,7 +11,7 @@
 
 static const char *dev = "/dev/input/event1";
 static ssize_t n;
-static int fd;
+static int fd = -1;
 static fd_set writefds;
 static struct timeval timeout;
 
@@ -18,20 +19,23 @@ static struct timeval timeout;
 static int pressed_keys[NUM_KEYS];
 static int keydown_keys[NUM_KEYS];
 
-int find_device();
+static int find_device(void);
+extern int setup_terminal(void);
 
-int ei_setup(const char* device_name) {
+int ei_init(const char* device_name) {
   // Try to figure out the name if we recieved NULL
   if (device_name == NULL) {
     fd = find_device();
   } else {
     fd = open(device_name, O_RDONLY);
   }
-  return (fd == -1);
+  if (fd == -1) return -1;
+
+  setup_terminal();
 }
 
-int ei_teardown() {
-  close(fd);
+void ei_quit(void) {
+  if (fd != -1) close(fd);
 }
 
 int ei_get_key_event(struct input_event *ev) {
@@ -99,7 +103,8 @@ void ei_frame_start() {
     memset(keydown_keys, 0, NUM_KEYS * sizeof(int));
 }
 
-int find_device() {
+// Try to figure out which of the devices in /dev/input/ is a keyboard
+static int find_device(void) {
   // We must examine the input devices
   int fd = open("/proc/bus/input/devices", O_RDONLY);
   int event_no = -1;
@@ -195,4 +200,3 @@ int find_device() {
   
   return -1;
 }
-

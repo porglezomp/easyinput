@@ -12,16 +12,16 @@ struct input_event;
  *
  * Will return 0 on success and 1 on failure.
  */
-int ei_setup(const char* device_name);
+int ei_init(const char* device_name);
 
 /* Closes the input device and performs any other necessary cleanup.
  */
-int ei_teardown();
+void ei_quit(void);
 
 /* Will poll all available characters from the input.
  * Use this if you only care about what keys are currently pressed.
  */
-void ei_poll_all();
+void ei_poll_all(void);
 
 /* Pass in a pointer to a `struct input_event`. If an event is found, the
  * input_event will be filled with the located event.
@@ -55,7 +55,7 @@ int ei_frame_keypress(int key);
  * Useful for when you lose focus and are worries you missed
  * the key release event.
  */
-void ei_reset_keys();
+void ei_reset_keys(void);
 
 /* Will reset a single key to a not pressed state.
  */
@@ -64,7 +64,7 @@ void ei_reset_key(int key);
 /* Starts a "frame," of input, for use with `ei_frame_keypress`.
  * Internally, it resets the buffer of keydown events.
  */
-void ei_frame_start();
+void ei_frame_start(void);
 
 #ifdef __cplusplus
 }
